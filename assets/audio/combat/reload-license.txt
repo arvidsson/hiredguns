@@ -1,0 +1,17 @@
+Firearms & Guns SFX Lite - Free Sample Pack - Sound Effects License
+Licensor: VD Sounds
+Applies to: the audio files in this pack ("the Sounds").
+
+1. You may use the Sounds in games, apps, videos, streams, films, podcasts,
+   music, and other media, including commercial projects, royalty-free.
+2. No attribution is required (it is welcome, but optional).
+3. You may edit, process, cut, and combine the Sounds in your own work.
+4. You may not resell, redistribute, share, or give away the Sounds on their own,
+   modified or not, or as part of a sound library, sample pack, asset pack,
+   or similar collection where the Sounds are the product.
+   Shipping the Sounds inside your finished game or media is fine.
+5. You may use the Sounds on any number of your own projects. The license is
+   non-exclusive and non-transferable. Ownership of the Sounds stays with VD Sounds.
+6. The Sounds are provided "as is", without warranty of any kind.
+
+All Sounds were synthesized from scratch in Python. No samples or AI audio.

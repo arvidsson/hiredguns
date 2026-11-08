@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run game",
+      "group": { "kind": "build", "isDefault": true },
+      "type": "process",
+      "command": "love",
+      "args": ["."],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check formatting",
+      "type": "process",
+      "command": "stylua",
+      "args": ["--check", "."],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}
