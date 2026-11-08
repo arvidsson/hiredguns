@@ -179,6 +179,7 @@ function Level.step(player, squad, crates, relativeHeading, shift, monsters)
         return teammate
     end
 
+    local movedCrate
     local crate = Level.occupantAt(crates, x, y)
     if crate then
         local nextX, nextY = x + dx, y + dy
@@ -191,13 +192,16 @@ function Level.step(player, squad, crates, relativeHeading, shift, monsters)
             return
         end
         crate.x, crate.y = nextX, nextY
+        movedCrate = crate
     elseif shift and relativeHeading == 2 then
         local ahead = Level.crateAhead(player, crates)
         if ahead then
             ahead.x, ahead.y = player.x, player.y
+            movedCrate = ahead
         end
     end
     player.x, player.y = x, y
+    return nil, movedCrate
 end
 
 return Level

@@ -27,7 +27,11 @@ local combatFiles = {
     dry_fire = 0.62,
     fire_pistol = 0.46,
     fire_shotgun = 0.48,
-    reload = 0.53,
+    reload = 0.74,
+    reload_shotgun = 0.53,
+    item_pickup = 0.34,
+    item_drop = 0.43,
+    crate_move = 0.6,
     fireball_impact = 0.37,
     fire = 0.48,
     monster_attack = 0.44,
@@ -162,6 +166,10 @@ function Game.new(scenes)
         source:play()
     end
 
+    local function playReload(inventory)
+        playCombat(inventory.hand.kind == "shotgun" and "reload_shotgun" or "reload")
+    end
+
     local function playInjury(victim)
         playCombat(victim.name == "RHEA" and "rhea_hurt" or "player_hurt")
         if victim.health == 0 then
@@ -209,7 +217,10 @@ function Game.new(scenes)
         else
             local x, y = player.x, player.y
             local moveCrate = direction == "push" or direction == "pull" or love.keyboard.isScancodeDown("lshift", "rshift")
-            Level.step(player, squad, crates, steps[direction], moveCrate, monsters)
+            local _, movedCrate = Level.step(player, squad, crates, steps[direction], moveCrate, monsters)
+            if movedCrate then
+                playCombat("crate_move")
+            end
             if player.x ~= x or player.y ~= y then
                 Exploration.reveal(explored, squad, crates)
                 player.foot = -player.foot
@@ -341,8 +352,9 @@ function Game.new(scenes)
     function scene.mousepressed(x, y, button)
         if focused and button == 2 then
             pointer(x, y)
-            if hovered and Inventory.reloadFromPack(squad[hovered].inventory) > 0 then
-                playCombat("reload")
+            local inventory = hovered and squad[hovered].inventory
+            if inventory and Inventory.reloadFromPack(inventory) > 0 then
+                playReload(inventory)
             end
         elseif focused and button == 1 then
             pointer(x, y)
@@ -366,6 +378,7 @@ function Game.new(scenes)
                 local pickup, index = Level.occupantAt(pickups, player.x, player.y)
                 if pickup and Inventory.add(player.inventory, pickup.item) then
                     table.remove(pickups, index)
+                    playCombat("item_pickup")
                 end
                 held = nil
                 pointer(x, y)
@@ -390,9 +403,10 @@ function Game.new(scenes)
                     local dropped, loaded = InventoryPanel.drop(player.inventory, drag, panel.x, panel.y, panel.w, panel.h - stripHeight, floorOccupied)
                     if dropped then
                         pickups[#pickups + 1] = { x = player.x, y = player.y, item = dropped }
+                        playCombat("item_drop")
                     end
                     if loaded and loaded > 0 then
-                        playCombat("reload")
+                        playReload(player.inventory)
                     end
                 end
                 drag = nil

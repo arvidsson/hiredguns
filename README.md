@@ -37,17 +37,6 @@ All three weapons and their ammunition can be found in the depot.
 
 ## Credits
 
-- Reloads use `pump_action_01.wav` from [Firearms & Guns SFX Lite by VD Sounds](https://vdsounds.itch.io/firearms-guns-sfx-lite). The bundled license is in `assets/audio/combat/reload-license.txt`.
-- Empty weapons use `pistol-dry-fire.wav` from [Free Gun Sounds by Outta This World Audio](https://moneywithjjcom.itch.io/free-guns-sounds).
+See [CREDITS.md](CREDITS.md) for asset sources and licenses.
 
-- The loading yard uses panorama 22 from [Cloudy Skyboxes by Screaming Brain Studios](https://screamingbrainstudios.itch.io/cloudy-skyboxes-pack), CC0.
-
-- Combat audio from [Military SFX Mini by hamsunqiu](https://hamsunqiu.itch.io/military-sfx-mini-free-12-cc0-gun-explosion-sounds) (CC0), [Monster Voice Pack by LAZY SPAR7AN GAMES](https://lazyspar7an.itch.io/free-monster-voice-pack-growls-grunts-death-sounds-wav), and Outta This World Audio's [Free Character Grunt Sounds](https://moneywithjjcom.itch.io/free-character-grunts-sounds) and [Free Gore Sounds](https://moneywithjjcom.itch.io/free-gore-sounds). The bundled WAVs were renamed for their game events.
-
-- Blood sprites by Korune from [Free pixel blood effects](https://korune9.itch.io/free-blood). Slash sprites by bobkingg from [Hit Impact Effect Sprites Pack](https://bobkingg.itch.io/blood-hit-effect-sprites), CC0.
-- [Footsteps SFX Free by heyheythere](https://heyheythere.itch.io/footsteps-sfx-free), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The two original clips play at alternating pitches in-game. The bundled license is in `assets/audio/footsteps/LICENSE.txt`.
-
-- [g3d by groverburger](https://github.com/groverburger/g3d), version 1.6.0, MIT. The bundled license is in `src/vendor/g3d/LICENSE`.
-- [Quake-like Sci-Fi 64x64 Texture Pack by Level Eleven Games](https://level-eleven-games.itch.io/quake-like-texture-pack). Six unmodified textures are included under descriptive filenames. The pack description states CC0 and the itch.io metadata lists CC BY 4.0, so the project preserves attribution and the source link. Original filenames are listed in `assets/textures/CREDITS.md`.
-
-The VS Code template includes an **F5** launch configuration and a **Check formatting** task. To package the game, zip `main.lua`, `conf.lua`, `src/`, and `assets/` at the archive root and give the archive a `.love` extension.
+The VS Code template includes an **F5** launch configuration and a **Check formatting** task. To package the game, zip `main.lua`, `conf.lua`, `src/`, `assets/`, and `CREDITS.md` at the archive root and give the archive a `.love` extension.
