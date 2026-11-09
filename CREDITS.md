@@ -40,6 +40,7 @@ Combat filenames below are relative to `assets/audio/combat/`.
 | `item_pickup.wav` | `9mm Pistol Slide Release.wav`, trimmed | [Snake's SECOND Authentic Gun Sounds Pack by SnakeF8](https://f8studios.itch.io/snakes-second-authentic-gun-sounds-pack) |
 | `item_drop.wav` | `wood_drop_01.wav`, trimmed | [Loot Satchel FREE Lite by yetiancai](https://yetiancai.itch.io/loot-satchel-item-sfx-free-lite) |
 | `crate_move.wav` | `METLFric_Scraping Dragging Computer Case On Concrete Ground Sustained Long_WangleLine - Computer Case Carnage-3.flac`, shortened and pitched down | [Computer Case Carnage by WangleLine](https://wangleline.itch.io/shorts-computer-case-carnage), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| `door_open.wav`, `door_close.wav` | The same scrape as `crate_move.wav`, retimed and layered with synthesized start and stop impacts. The close scrape is reversed. | [Computer Case Carnage by WangleLine](https://wangleline.itch.io/shorts-computer-case-carnage), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | `monster_attack.wav` | `bugzy1Attack.wav` | [Monster Voice Pack by LAZY SPAR7AN GAMES](https://lazyspar7an.itch.io/free-monster-voice-pack-growls-grunts-death-sounds-wav) |
 | `monster_hurt.wav` | `bugzy1Hurt.wav` | Monster Voice Pack |
 | `monster_death.wav` | `bugzy1Death.wav` | Monster Voice Pack |
@@ -50,6 +51,8 @@ Combat filenames below are relative to `assets/audio/combat/`.
 - `assets/audio/footsteps/armour_concrete_01.ogg` and `walk_concrete_02.ogg` retain their original filenames and play at alternating pitches in-game. [Footsteps SFX Free by heyheythere](https://heyheythere.itch.io/footsteps-sfx-free), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), [bundled license](assets/audio/footsteps/LICENSE.txt).
 
 ## Evaluated or replaced downloads
+
+- The previous door sounds were `doorOpen_000.ogg` and `doorClose_000.ogg`, played at a speed matched to the animation. [Sci-Fi Sounds by Kenney](https://kenney.nl/assets/sci-fi-sounds), [OpenGameArt download](https://opengameart.org/content/sci-fi-sounds), [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 
 - The previous shotgun reload used `reload_shotgun_01.wav`. [Firearms & Guns SFX Lite by VD Sounds](https://vdsounds.itch.io/firearms-guns-sfx-lite), [bundled license](assets/audio/combat/reload-license.txt).
 - The previous item sounds used `armor_pickup_01.wav` and `armor_drop_01.wav` from Loot Satchel FREE Lite.

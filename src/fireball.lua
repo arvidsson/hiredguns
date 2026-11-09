@@ -4,18 +4,20 @@ local tileTime = 0.17
 
 function Fireball.new(caster)
     local dx, dy = Level.direction(caster.heading)
-    return { x = caster.x, y = caster.y, dx = dx, dy = dy, time = 0, crossed = 0 }
+    return { x = caster.x, y = caster.y, z = caster.z, dx = dx, dy = dy, time = 0, crossed = 0 }
 end
 
 local function impact(shot, squad, crates, monsters)
-    local blocked = not Level.walkable(shot.x, shot.y) or Level.occupantAt(crates, shot.x, shot.y) or Level.livingAt(monsters, shot.x, shot.y)
-    local victim = Level.livingAt(squad, shot.x, shot.y)
+    local blocked = Level.blocksShot(shot.x, shot.y, shot.z, shot.x - shot.dx, shot.y - shot.dy)
+        or Level.occupantAt(crates, shot.x, shot.y, shot.z)
+        or Level.livingAt(monsters, shot.x, shot.y, shot.z)
+    local victim = Level.livingAt(squad, shot.x, shot.y, shot.z)
     if victim then
         Level.hurtOperative(victim, 24)
     end
     if blocked or victim then
         local x, y = shot.x - shot.dx * 0.57, shot.y - shot.dy * 0.57
-        return false, victim, { x = x, y = y, age = 0 }
+        return false, victim, { x = x, y = y, z = shot.z, age = 0 }
     end
     return true
 end

@@ -102,6 +102,9 @@ end
 
 local function chase(monster, squad, crates, monsters, seekLane)
     local goal = monster.target
+    if (goal.z or 0) ~= 0 then
+        return
+    end
     local shortest, length = route(monster, goal, squad, crates, monsters, seekLane)
     if monster.detourDelay > 0 then
         monster.detourDelay = monster.detourDelay - 1

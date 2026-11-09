@@ -13,7 +13,7 @@ local Game = {}
 
 local steps = { up = 0, down = 2, strafeLeft = 1, strafeRight = 3, push = 0, pull = 2 }
 local turns = { left = 1, right = -1 }
-local keys = { w = "up", s = "down", a = "left", d = "right", q = "strafeLeft", e = "strafeRight", space = "fire" }
+local keys = { w = "up", s = "down", a = "left", d = "right", q = "strafeLeft", e = "strafeRight", f = "door", space = "fire" }
 local cursorDirections = { "up", "down", "left", "right", "strafeLeft", "strafeRight", "push", "pull", "fire" }
 local tabNames = { "View", "Map", "Inventory" }
 local tabWidth, stripHeight = 108, 54
@@ -24,6 +24,8 @@ local footstepFiles = {
     armour = "armour_concrete_01.ogg",
 }
 local combatFiles = {
+    door_open = 0.58,
+    door_close = 0.62,
     dry_fire = 0.62,
     fire_pistol = 0.46,
     fire_shotgun = 0.48,
@@ -78,7 +80,14 @@ local function hit(x, y, tabs, squad, crates, pickups)
                 return
             end
             local left, top, width, height = pickupBounds(panel)
-            if x >= left and x < left + width and y >= top and y < top + height and Level.occupantAt(pickups, squad[index].x, squad[index].y) then
+            if
+                x >= left
+                and x < left + width
+                and y >= top
+                and y < top + height
+                and not squad[index].fall
+                and Level.occupantAt(pickups, squad[index].x, squad[index].y, squad[index].z)
+            then
                 return index, "pickup"
             end
             local dx, dy = u * 2 - 1, v * 2 - 1
@@ -179,7 +188,17 @@ function Game.new(scenes)
 
     local function command(index, direction)
         local player = squad[index]
-        if player.health == 0 then
+        if player.health == 0 or player.fall then
+            return
+        end
+        if direction == "door" then
+            if Level.pressDoorSwitch(player) then
+                return
+            end
+            local sound = Level.toggleDoor(player, squad, crates, monsters)
+            if sound then
+                playCombat(sound)
+            end
             return
         end
         if direction == "fire" then
@@ -199,7 +218,7 @@ function Game.new(scenes)
             elseif result == "shot" then
                 local profile = Weapon.types[hand.kind]
                 local dx, dy = Level.direction(player.heading)
-                player.muzzle = { x = player.x + dx * 0.34, y = player.y + dy * 0.34, remaining = World.muzzleTime, strength = profile.flash }
+                player.muzzle = { x = player.x + dx * 0.34, y = player.y + dy * 0.34, z = player.z, remaining = World.muzzleTime, strength = profile.flash }
                 playCombat(profile.sound)
                 if isMonster then
                     Monster.hurt(target, profile.damage, player)
@@ -233,12 +252,13 @@ function Game.new(scenes)
     end
 
     function scene.reset()
+        Level.resetDoors()
         squad = {}
         crates = Level.newCrates()
         pickups = {}
         for index, spawn in ipairs(Level.lootSpawns) do
-            local x, y, kind, count = unpack(spawn)
-            pickups[index] = { x = x, y = y, item = Inventory.newItem(kind, count) }
+            local x, y, kind, count, z = unpack(spawn, 1, 5)
+            pickups[index] = { x = x, y = y, z = z, item = Inventory.newItem(kind, count) }
         end
         drag = nil
         monsters = {}
@@ -350,7 +370,12 @@ function Game.new(scenes)
     end
 
     function scene.mousepressed(x, y, button)
-        if focused and button == 2 then
+        if focused and button == 3 then
+            pointer(x, y)
+            if hovered then
+                command(hovered, "door")
+            end
+        elseif focused and button == 2 then
             pointer(x, y)
             local inventory = hovered and squad[hovered].inventory
             if inventory and Inventory.reloadFromPack(inventory) > 0 then
@@ -375,7 +400,7 @@ function Game.new(scenes)
             end
             if action == "pickup" then
                 local player = squad[hovered]
-                local pickup, index = Level.occupantAt(pickups, player.x, player.y)
+                local pickup, index = Level.occupantAt(pickups, player.x, player.y, player.z)
                 if pickup and Inventory.add(player.inventory, pickup.item) then
                     table.remove(pickups, index)
                     playCombat("item_pickup")
@@ -396,13 +421,13 @@ function Game.new(scenes)
             held = nil
             if drag then
                 pointer(x, y)
-                if inventoryPanel == drag.owner then
+                if inventoryPanel == drag.owner and not squad[drag.owner].fall then
                     local panel = panels()[drag.owner]
                     local player = squad[drag.owner]
-                    local floorOccupied = Level.occupantAt(pickups, player.x, player.y) ~= nil
+                    local floorOccupied = Level.occupantAt(pickups, player.x, player.y, player.z) ~= nil
                     local dropped, loaded = InventoryPanel.drop(player.inventory, drag, panel.x, panel.y, panel.w, panel.h - stripHeight, floorOccupied)
                     if dropped then
-                        pickups[#pickups + 1] = { x = player.x, y = player.y, item = dropped }
+                        pickups[#pickups + 1] = { x = player.x, y = player.y, z = player.z, item = dropped }
                         playCombat("item_drop")
                     end
                     if loaded and loaded > 0 then
@@ -416,6 +441,9 @@ function Game.new(scenes)
 
     function scene.update(dt)
         for _, player in ipairs(squad) do
+            if player.fall then
+                player.fall = player.fall > dt and player.fall - dt or nil
+            end
             player.shot = math.max(0, player.shot - dt)
             if player.muzzle then
                 player.muzzle.remaining = player.muzzle.remaining - dt
@@ -438,6 +466,9 @@ function Game.new(scenes)
         end
         if not focused then
             return
+        end
+        if Level.updateDoors(dt) then
+            Exploration.reveal(explored, squad, crates)
         end
         for index = #fireballBursts, 1, -1 do
             local burst = fireballBursts[index]
@@ -502,7 +533,7 @@ function Game.new(scenes)
                 graphics.setColor(0.22, 0.59, 0.36, player.healed * 0.8)
                 graphics.rectangle("fill", x, y, w, viewHeight)
             end
-            local pickup = Level.occupantAt(pickups, player.x, player.y)
+            local pickup = not player.fall and Level.occupantAt(pickups, player.x, player.y, player.z)
             if pickup then
                 local left, top, width, height = pickupBounds(panel)
                 local item = pickup.item
@@ -527,7 +558,7 @@ function Game.new(scenes)
         elseif tabs[index] == mapTab then
             DepotMap.draw(x, y, w, viewHeight, squad, crates, index, smallFont, explored)
         else
-            local floorOccupied = Level.occupantAt(pickups, player.x, player.y) ~= nil
+            local floorOccupied = Level.occupantAt(pickups, player.x, player.y, player.z) ~= nil
             inventoryArt:draw(player.inventory, x, y, w, viewHeight, smallFont, player.color, drag and drag.owner == index and drag, floorOccupied)
         end
         local stripY = y + viewHeight
@@ -563,7 +594,6 @@ function Game.new(scenes)
 
     function scene.draw()
         local layout = panels()
-        world:setLights(fireballs, fireballBursts, squad)
         for i, panel in ipairs(layout) do
             if tabs[i] == viewTab and squad[i].health > 0 then
                 world:render(views[i], squad[i], squad, crates, panel.w / (panel.h - stripHeight), monsters, pickups, fireballs, fireballBursts)
@@ -596,7 +626,7 @@ function Game.new(scenes)
                     break
                 end
             end
-        elseif focused and keys[scancode] then
+        elseif focused and keys[scancode] and (scancode ~= "f" or not isrepeat) then
             pointer(love.mouse.getPosition())
             if hovered then
                 command(hovered, keys[scancode])

@@ -4,7 +4,7 @@ local World = {}
 World.__index = World
 World.muzzleTime = 0.10
 
-local height = 1.55
+local height = Level.upperZ
 local lighting = [[
     varying vec4 worldPosition;
     varying vec4 viewPosition;
@@ -46,11 +46,13 @@ local skyShader = [[
     extern vec2 resolution;
     extern vec2 forward;
     extern vec2 frustum;
+    extern vec2 tilt;
 
     vec4 effect(vec4 color, Image image, vec2 uv, vec2 pixel) {
         vec2 screen = pixel / resolution * 2.0 - 1.0;
         vec2 right = vec2(forward.y, -forward.x);
-        vec3 ray = normalize(vec3(forward + right * screen.x * frustum.x, -screen.y * frustum.y - 0.015));
+        float up = -screen.y * frustum.y;
+        vec3 ray = normalize(vec3(forward * (tilt.x - up * tilt.y) + right * screen.x * frustum.x, tilt.y + up * tilt.x));
         vec2 sky = vec2(atan(ray.y, ray.x) / 6.2831853 + 0.5, 0.5 - asin(ray.z) / 3.1415927);
         return vec4(Texel(panorama, sky).rgb * vec3(0.86, 0.83, 0.82), 1.0);
     }
@@ -110,45 +112,99 @@ local function box(vertices, x, y, x2, y2, low, high)
 end
 
 local function buildGeometry()
-    local tiles = { wall = {}, floor = {}, ceiling = {}, crate = {}, hazard = {}, lamp = {}, yard = {}, service = {}, yardWall = {} }
+    local tiles = { wall = {}, floor = {}, ceiling = {}, crate = {}, hazard = {}, lamp = {}, yard = {}, service = {}, yardWall = {}, yardDeck = {} }
     box(tiles.crate, -0.48, -0.48, 0.48, 0.48, 0, 0.89)
+    tiles.door, tiles.doorFrame, tiles.switch = {}, {}, {}
+    box(tiles.door, -0.04, -0.219, 0.04, 0.219, 0, height - 0.055)
+    box(tiles.doorFrame, -0.08, -0.50, 0.08, -0.44, 0, height)
+    box(tiles.doorFrame, -0.08, 0.44, 0.08, 0.50, 0, height)
+    box(tiles.doorFrame, -0.08, -0.44, 0.08, 0.44, height - 0.055, height)
+    box(tiles.switch, -0.025, -0.075, 0.025, 0.075, 0.60, 0.78)
     local edges = {
         { 0, -1, 0, 0, 1, 0, 0.92 },
         { 1, 0, 1, 0, 1, 1, 0.75 },
         { 0, 1, 1, 1, 0, 1, 0.92 },
         { -1, 0, 0, 1, 0, 0, 0.75 },
     }
+    local upperCeiling = Level.upperZ + height
+    local deckBottom = Level.upperZ - 0.06
+    local function ceiling(x, y, z, lit, covered)
+        if not covered then
+            slab(tiles.ceiling, x, y, x + 1, y + 1, z, 0.64)
+        end
+        if lit then
+            box(tiles.lamp, x + 0.17, y + 0.43, x + 0.83, y + 0.57, z - 0.04, z - 0.001)
+        end
+    end
     Level.eachTile(function(x, y, tile)
         if tile ~= "#" then
+            local stair = Level.stairHeight(x, y)
+            local shaft = Level.indoorStair(x, y)
+            if stair then
+                local steps = shaft and tiles.service or tiles.yardDeck
+                for tread = 1, 5 do
+                    local front = x + (tread - 1) / 5
+                    local rise = Level.upperZ / 6
+                    slab(steps, front, y, x + tread / 5, y + 1, tread * rise, 0.95)
+                    wall(steps, front, y + 1, front, y, (tread - 1) * rise, tread * rise, 0.75, rise)
+                end
+                if shaft then
+                    wall(tiles.wall, x, y + 1, x, y, height, upperCeiling, 0.75, upperCeiling - height)
+                else
+                    wall(steps, x + 1, y, x + 1, y + 1, 0, Level.upperZ, 0.75, Level.upperZ)
+                end
+            end
             if Level.isOutside(tile) then
                 slab(tiles.yard, x, y, x + 1, y + 1, 0, 0.87)
             else
                 local floor = tile == "T" and tiles.hazard or tile == "S" and tiles.service or tiles.floor
                 slab(floor, x, y, x + 1, y + 1, 0, 0.87)
-                slab(tiles.ceiling, x, y, x + 1, y + 1, height, 0.64)
-                if (x % 8 == 3 and (y == 3 or y == 9 or y == 14)) or (tile == "S" and (x + y) % 5 == 0) then
-                    box(tiles.lamp, x + 0.17, y + 0.43, x + 0.83, y + 0.57, height - 0.065, height)
-                end
+                local lit = (x % 8 == 3 and (y == 3 or y == 9 or y == 14)) or (tile == "S" and (x + y) % 5 == 0)
+                local covered = Level.tile(x, y, Level.upperZ) ~= "#"
+                ceiling(x, y, covered and deckBottom or shaft and upperCeiling or height, lit, covered)
             end
         else
-            local cap = false
+            local stairSide = Level.stairSideWall(x, y)
+            local bordersYard = false
+            local wallHeight = stairSide and upperCeiling or height
             for _, edge in ipairs(edges) do
                 local dx, dy, ax, ay, bx, by, shade = unpack(edge)
                 local adjacent = Level.tile(x + dx, y + dy)
                 if adjacent ~= "#" then
                     local outside = Level.isOutside(adjacent)
-                    local farSide = Level.tile(x - dx, y - dy)
-                    local lowWall = outside and (farSide == "#" or Level.isOutside(farSide))
-                    local wallHeight = lowWall and 1.16 or height
+                    bordersYard = bordersYard or outside
                     wall(outside and tiles.yardWall or tiles.wall, x + ax, y + ay, x + bx, y + by, 0, wallHeight, shade, wallHeight)
-                    cap = cap or lowWall
                 end
             end
-            if cap then
-                slab(tiles.yardWall, x, y, x + 1, y + 1, 1.16, 0.66)
+            local covered = wallHeight == Level.upperZ and Level.tile(x, y, Level.upperZ) ~= "#"
+            if (stairSide or bordersYard) and not covered then
+                slab(tiles.yardWall, x, y, x + 1, y + 1, wallHeight, 0.66)
             end
         end
     end)
+    Level.eachTile(function(x, y, tile)
+        if tile ~= "#" then
+            local outside = Level.isOutside(tile)
+            local deck = outside and tiles.yardDeck or tiles.service
+            slab(deck, x, y, x + 1, y + 1, Level.upperZ, 0.95)
+            slab(deck, x, y, x + 1, y + 1, deckBottom, 0.50)
+            for _, edge in ipairs(edges) do
+                local dx, dy, ax, ay, bx, by, shade = unpack(edge)
+                if Level.tile(x + dx, y + dy, Level.upperZ) == "#" and not Level.stairHeight(x + dx, y + dy) then
+                    wall(deck, x + ax, y + ay, x + bx, y + by, deckBottom, Level.upperZ, shade, Level.upperZ - deckBottom)
+                end
+            end
+            if not outside then
+                ceiling(x, y, upperCeiling, (x + y) % 4 == 0)
+                for _, edge in ipairs(edges) do
+                    local dx, dy, ax, ay, bx, by, shade = unpack(edge)
+                    if Level.upperWall(x, y, x + dx, y + dy) then
+                        wall(tiles.wall, x + ax, y + ay, x + bx, y + by, Level.upperZ, upperCeiling, shade, height)
+                    end
+                end
+            end
+        end
+    end, Level.upperZ)
     return tiles
 end
 
@@ -191,8 +247,9 @@ function World.new(itemArt)
     graphics.pop()
     local shader = graphics.newShader(lighting, g3d.shaderpath)
     local self = setmetatable({ camera = g3d.camera, shader = shader, models = {}, images = {} }, World)
+    local sharedTextures = { yardWall = "wall", yardDeck = "service", door = "crate", doorFrame = "hazard", switch = "crate" }
     for name, vertices in pairs(buildGeometry()) do
-        local textureName = name == "yardWall" and "wall" or name
+        local textureName = sharedTextures[name] or name
         local texture = graphics.newImage("assets/textures/" .. textureName .. ".png")
         texture:setFilter("nearest", "nearest")
         texture:setWrap("repeat", "repeat")
@@ -207,10 +264,10 @@ function World.new(itemArt)
         { 318, 628, operativeCuts },
         { 633, 941, operativeCuts },
         { 945, 1259, operativeCuts },
-    }, 1.06)
+    }, 0.84)
     local enemyArt = {
-        melee = { "monster-psx.png", 1.22, { { 13, 347 }, { 762, 1071, { 0, 302, 735, 1070, 1448 } } } },
-        ranged = { "caster-psx.png", 1.18, { { 13, 360 }, { 735, 1080 } } },
+        melee = { "monster-psx.png", 0.92, { { 13, 347 }, { 762, 1071, { 0, 302, 735, 1070, 1448 } } } },
+        ranged = { "caster-psx.png", 0.89, { { 13, 360 }, { 735, 1080 } } },
         skitterer = { "skitterer-psx.png", 0.62, { { 128, 382 }, { 573, 822, { 0, 392, 900, 1333, 1774 } } } },
     }
     self.enemyAtlases, self.enemySprites = {}, {}
@@ -256,7 +313,7 @@ function World.new(itemArt)
         self.slashes[frame] = image
     end
     local slash = {}
-    quad(slash, { 0, 0.34, 0.33 }, { 0, -0.34, 0.33 }, { 0, -0.34, 1.01 }, { 0, 0.34, 1.01 }, 1)
+    quad(slash, { 0, 0.30, 0.29 }, { 0, -0.30, 0.29 }, { 0, -0.30, 0.89 }, { 0, 0.30, 0.89 }, 1)
     self.swipe = g3d.newModel(slash, self.slashes[1])
     local fireball = {}
     quad(fireball, { 0, 0.43, -0.43 }, { 0, -0.43, -0.43 }, { 0, -0.43, 0.43 }, { 0, 0.43, 0.43 }, 1)
@@ -274,24 +331,25 @@ end
 
 function World:drawActor(sprite, actor, cameraAngle)
     self.spriteShader:send("collapse", actor.collapse or 0)
-    self.spriteShader:send("exterior", Level.isOutside(Level.tile(actor.x, actor.y)) and 1 or 0)
-    sprite:setTranslation(actor.x, actor.y, 0)
+    self.spriteShader:send("exterior", Level.isOutside(Level.tile(actor.x, actor.y, actor.z)) and 1 or 0)
+    sprite:setTranslation(actor.x, actor.y, Level.visualHeight(actor))
     sprite:setRotation(0, 0, cameraAngle)
     sprite:draw(self.spriteShader)
 end
 
 function World:drawCorpse(actor, cameraAngle)
-    self.shader:send("exterior", Level.isOutside(Level.tile(actor.x, actor.y)) and 1 or 0)
-    self.corpse:setTranslation(actor.x, actor.y, 0.012)
+    self.shader:send("exterior", Level.isOutside(Level.tile(actor.x, actor.y, actor.z)) and 1 or 0)
+    self.corpse:setTranslation(actor.x, actor.y, Level.visualHeight(actor) + 0.012)
     self.corpse:setRotation(0, 0, cameraAngle)
     self.corpse:draw(self.shader)
 end
 
-function World:setLights(fireballs, bursts, squad)
+function World:setLights(fireballs, bursts, squad, viewer)
     local lights = {}
+    local z = viewer.z or 0
     for _, player in ipairs(squad) do
         local muzzle = player.muzzle
-        if muzzle then
+        if muzzle and (muzzle.z or 0) == z then
             local strength = muzzle.strength * muzzle.remaining / World.muzzleTime
             lights[#lights + 1] = { muzzle.x, muzzle.y, strength, 4.3 }
         end
@@ -300,13 +358,17 @@ function World:setLights(fireballs, bursts, squad)
         if #lights == 8 then
             break
         end
-        lights[#lights + 1] = { burst.x, burst.y, 3.6 * (1 - burst.age / Fireball.burstTime), 2.5 }
+        if (burst.z or 0) == z then
+            lights[#lights + 1] = { burst.x, burst.y, 3.6 * (1 - burst.age / Fireball.burstTime), 2.5 }
+        end
     end
     for _, shot in ipairs(fireballs) do
         if #lights == 8 then
             break
         end
-        lights[#lights + 1] = { shot.x, shot.y, 2.2, 2.5 }
+        if (shot.z or 0) == z then
+            lights[#lights + 1] = { shot.x, shot.y, 2.2, 2.5 }
+        end
     end
     for _, shader in ipairs({ self.shader, self.spriteShader }) do
         shader:send("lightCount", #lights)
@@ -317,6 +379,7 @@ function World:setLights(fireballs, bursts, squad)
 end
 
 function World:render(target, viewer, squad, crates, aspect, monsters, pickups, fireballs, bursts)
+    self:setLights(fireballs, bursts, squad, viewer)
     local graphics = love.graphics
     graphics.push("all")
     graphics.origin()
@@ -329,8 +392,12 @@ function World:render(target, viewer, squad, crates, aspect, monsters, pickups, 
     local width, height = target:getDimensions()
     self.skyShader:send("resolution", { width, height })
     local forwardX, forwardY = Level.direction(viewer.heading)
+    local downhill = Level.stairHeight(viewer.x, viewer.y) and forwardX < 0
+    local pitch = downhill and -0.55 or -0.015
+    local eyeHeight = downhill and 0.64 or 0.72
     self.skyShader:send("forward", { forwardX, forwardY })
     self.skyShader:send("frustum", { halfFrustum * aspect, halfFrustum })
+    self.skyShader:send("tilt", { math.cos(pitch), math.sin(pitch) })
     graphics.setShader(self.skyShader)
     graphics.rectangle("fill", 0, 0, width, height)
     graphics.setShader()
@@ -339,24 +406,59 @@ function World:render(target, viewer, squad, crates, aspect, monsters, pickups, 
     self.camera.aspectRatio = aspect
     self.camera.updateProjectionMatrix()
     local cameraAngle = viewer.heading * math.pi / 2
-    self.camera.lookInDirection(viewer.x, viewer.y, 0.78, cameraAngle, -0.015)
+    self.camera.lookInDirection(viewer.x, viewer.y, Level.visualHeight(viewer) + eyeHeight, cameraAngle, pitch)
     for name, model in pairs(self.models) do
-        if name ~= "crate" then
+        if name ~= "crate" and name ~= "door" and name ~= "doorFrame" and name ~= "switch" then
             self.shader:send("fixture", name == "lamp" and 1 or 0)
-            self.shader:send("exterior", (name == "yard" or name == "yardWall") and 1 or 0)
+            self.shader:send("exterior", (name == "yard" or name == "yardWall" or name == "yardDeck") and 1 or 0)
             model:draw(self.shader)
         end
     end
     self.shader:send("fixture", 0)
+    Level.eachDoor(function(door)
+        self.shader:send("exterior", Level.isOutside(Level.tile(door.x, door.y, door.z)) and 1 or 0)
+        local frame = self.models.doorFrame
+        frame:setTranslation(door.x, door.y, door.z)
+        frame:setRotation(0, 0, door.angle)
+        frame:draw(self.shader)
+        if not door.open then
+            local panel = self.models.door
+            panel:setRotation(0, 0, door.angle)
+            local travel = door.travel or 0
+            local offset = 0.221 + 0.44 * travel * travel * (3 - 2 * travel)
+            local dx, dy = -math.sin(door.angle) * offset, math.cos(door.angle) * offset
+            graphics.setColor(0.78, 0.90, 1)
+            panel:setTranslation(door.x + dx, door.y + dy, door.z)
+            panel:draw(self.shader)
+            panel:setTranslation(door.x - dx, door.y - dy, door.z)
+            panel:draw(self.shader)
+            graphics.setColor(1, 1, 1)
+        end
+        if door.switches then
+            local button = self.models.switch
+            if door.locked then
+                graphics.setColor(1, 0.30, 0.22)
+            else
+                graphics.setColor(0.30, 1, 0.48)
+            end
+            for _, switch in ipairs(door.switches) do
+                local dx, dy = Level.direction(switch[3])
+                button:setTranslation(switch[1] + dx * 0.475, switch[2] + dy * 0.475, door.z)
+                button:setRotation(0, 0, switch[3] * math.pi / 2)
+                button:draw(self.shader)
+            end
+            graphics.setColor(1, 1, 1)
+        end
+    end)
     for _, crate in ipairs(crates) do
-        self.shader:send("exterior", Level.isOutside(Level.tile(crate.x, crate.y)) and 1 or 0)
-        self.models.crate:setTranslation(crate.x, crate.y, 0)
+        self.shader:send("exterior", Level.isOutside(Level.tile(crate.x, crate.y, crate.z)) and 1 or 0)
+        self.models.crate:setTranslation(crate.x, crate.y, crate.z or 0)
         self.models.crate:draw(self.shader)
     end
     for _, pickup in ipairs(pickups) do
         local sprite = self.pickups[pickup.item.kind]
-        self.shader:send("exterior", Level.isOutside(Level.tile(pickup.x, pickup.y)) and 1 or 0)
-        sprite:setTranslation(pickup.x, pickup.y, 0)
+        self.shader:send("exterior", Level.isOutside(Level.tile(pickup.x, pickup.y, pickup.z)) and 1 or 0)
+        sprite:setTranslation(pickup.x, pickup.y, pickup.z or 0)
         sprite:setRotation(0, 0, cameraAngle)
         sprite:draw(self.shader)
     end
@@ -380,20 +482,20 @@ function World:render(target, viewer, squad, crates, aspect, monsters, pickups, 
     for _, shot in ipairs(fireballs) do
         local depth = (shot.x - viewer.x) * forwardX + (shot.y - viewer.y) * forwardY
         if depth >= 0.35 then
-            self:drawFireball(shot.x, shot.y, cameraAngle, 1)
+            self:drawFireball(shot.x, shot.y, shot.z, cameraAngle, 1)
         end
     end
     for _, burst in ipairs(bursts) do
         local progress = burst.age / Fireball.burstTime
-        self:drawFireball(burst.x, burst.y, cameraAngle, 0.54 + 0.37 * progress, progress)
+        self:drawFireball(burst.x, burst.y, burst.z, cameraAngle, 0.54 + 0.37 * progress, progress)
     end
     graphics.pop()
 end
 
-function World:drawFireball(x, y, angle, scale, burst)
+function World:drawFireball(x, y, z, angle, scale, burst)
     self.fireShader:send("flicker", (love.timer.getTime() * 18) % (2 * math.pi))
     self.fireShader:send("burst", burst or -1)
-    self.fireball:setTranslation(x, y, 0.72)
+    self.fireball:setTranslation(x, y, (z or 0) + 0.72)
     self.fireball:setRotation(0, 0, angle)
     self.fireball:setScale(scale)
     love.graphics.setDepthMode("lequal", false)
@@ -415,11 +517,11 @@ function World:drawMonster(monster, viewer, cameraAngle)
     self.spriteShader:send("hitFlash", 0)
     if monster.ranged and attack and not attack.released then
         local dx, dy = Level.direction(monster.heading)
-        self:drawFireball(monster.x + dx * 0.36, monster.y + dy * 0.36, cameraAngle, 0.38 + attack.progress * 0.53)
+        self:drawFireball(monster.x + dx * 0.36, monster.y + dy * 0.36, monster.z, cameraAngle, 0.38 + attack.progress * 0.53)
     elseif not monster.ranged and pose == 2 then
         local frame = math.min(#self.slashes, math.floor(attack.progress * #self.slashes) + 1)
         self.swipe.mesh:setTexture(self.slashes[frame])
-        self.swipe:setTranslation((monster.x + attack.x) / 2, (monster.y + attack.y) / 2, 0)
+        self.swipe:setTranslation((monster.x + attack.x) / 2, (monster.y + attack.y) / 2, monster.z or 0)
         self.swipe:setRotation(0, 0, cameraAngle)
         self.swipe:setScale(monster.kind == "skitterer" and 0.58 or 1)
         graphics.setColor(0.95, 0.76, 0.69)

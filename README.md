@@ -18,9 +18,12 @@ Drag an equipped item back into a free area of the pack to stow it. Drag an item
 
 The squad starts together near the depot entrance. Five melee mutants, two fireball casters, and two fast, fragile Skitterers lurk across the depot. Alerted monsters pursue operatives around corners. The casters seek a clear tile lane, visibly charge, then fire straight down it. Fireballs jump one tile every 0.17 seconds, cast white light, and burst on impact. Each living operative's portrait, health, and compass heading stay visible on every tab. At zero HP, the entire panel turns to static and shows **MIA**. The body stays on the tile and can be walked over.
 
+The depot has stairs inside the building and along the edge of the yard. Each staircase occupies one tile between two wall tiles. Both lead to the same upper floor, with an enclosed corridor connecting to the yard walkway. Use the usual movement controls to climb or descend. You can also step off an open edge of the walkway to drop into the yard below. Each operative's map shows their current floor.
+
 Before spotting the squad, monsters either patrol a fixed loop or wander near their spawn. During pursuit, they can take a short detour instead of always taking the shortest route.
 
 - **W / S** step one tile forward or backward. **A / D** turn 90° left or right. **Q / E** sidestep one tile left or right.
+- **F** or middle-click operates the door or wall switch directly ahead. Red switches indicate a locked door and green switches indicate an unlocked one. Use the switch to unlock the door, then face the door to open it. Close it before locking it again. A living operative, mutant, or crate in the doorway keeps it open.
 - **Space** or clicking the center crosshair uses the item in hand. Right-click a **View** to reload from matching ammo in the pack. Guns fire straight ahead. Walls and crates stop their shots, and the first living operative or mutant in their path takes damage. Empty guns click when fired. An equipped medkit restores up to 40 HP and leaves the hand slot empty when consumed.
 
 | Starting operative | Weapon | Ammo | Capacity | Damage | Range |

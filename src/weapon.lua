@@ -24,14 +24,14 @@ function Weapon.fire(player, monsters, squad, crates)
     local dx, dy = Level.direction(player.heading)
     for tile = 1, weapon.range do
         local x, y = player.x + dx * tile, player.y + dy * tile
-        if not Level.walkable(x, y) or Level.occupantAt(crates, x, y) then
+        if Level.blocksShot(x, y, player.z, x - dx, y - dy) or Level.occupantAt(crates, x, y, player.z) then
             break
         end
-        local teammate = Level.livingAt(squad, x, y)
+        local teammate = Level.livingAt(squad, x, y, player.z)
         if teammate then
             return "shot", teammate
         end
-        local monster = Level.livingAt(monsters, x, y)
+        local monster = Level.livingAt(monsters, x, y, player.z)
         if monster then
             return "shot", monster, true
         end
